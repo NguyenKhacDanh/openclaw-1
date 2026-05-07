@@ -1,3 +1,6 @@
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import { getProviderEnvVars } from "../secrets/provider-env-vars.js";
 import {
   normalizeLowercaseStringOrEmpty,
@@ -107,6 +110,22 @@ function resolveProviderApiKeyConfig(provider: string): ProviderApiKeyConfig {
   };
 }
 
+function readPriorityStoreKeysSync(provider: string): string[] {
+  try {
+    const storePath = path.join(os.homedir(), ".openclaw", "api-key-priority.json");
+    const raw = fs.readFileSync(storePath, "utf-8");
+    const entries = JSON.parse(raw) as Array<{ provider: string; keyRef: string; priority: number; models?: string[] }>;
+    if (!Array.isArray(entries)) return [];
+    return entries
+      .filter((e) => e.provider === provider && e.keyRef && !e.keyRef.startsWith("$") && !e.keyRef.startsWith("env:"))
+      .sort((a, b) => a.priority - b.priority)
+      .map((e) => e.keyRef.trim())
+      .filter(Boolean);
+  } catch {
+    return [];
+  }
+}
+
 export function collectProviderApiKeys(
   provider: string,
   options: CollectProviderApiKeysOptions = {},
@@ -157,6 +176,9 @@ export function collectProviderApiKeys(
     add(value);
   }
   for (const value of manifestFallback) {
+    add(value);
+  }
+  for (const value of readPriorityStoreKeysSync(normalizedProvider)) {
     add(value);
   }
 

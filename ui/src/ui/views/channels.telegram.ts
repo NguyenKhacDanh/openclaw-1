@@ -112,9 +112,38 @@ export function renderTelegramCard(params: {
           ${telegram.probe.status ?? ""} ${telegram.probe.error ?? ""}
         </div>`
       : nothing,
+    extraContent: renderTelegramBotQr(telegram),
     configSection: renderChannelConfigSection({ channelId: "telegram", props }),
     footer: html`<div class="row" style="margin-top: 12px;">
       <button class="btn" @click=${() => props.onRefresh(true)}>${t("common.probe")}</button>
     </div>`,
   });
+}
+
+function renderTelegramBotQr(telegram?: TelegramStatus) {
+  const botUsername = telegram?.probe?.bot?.username;
+  if (!botUsername) return nothing;
+
+  const botUrl = `https://t.me/${botUsername}`;
+  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(botUrl)}`;
+
+  return html`
+    <div style="margin-top: 14px;">
+      <div class="muted" style="font-size: 13px; margin-bottom: 6px;">
+        ${t("telegram.scanQrHint")} <span class="mono">@${botUsername}</span>
+      </div>
+      <div class="qr-wrap">
+        <img src=${qrUrl} alt="Telegram Bot QR" width="160" height="160" />
+      </div>
+      <div style="margin-top: 6px;">
+        <a
+          href=${botUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          class="mono muted"
+          style="font-size: 12px;"
+        >${botUrl}</a>
+      </div>
+    </div>
+  `;
 }

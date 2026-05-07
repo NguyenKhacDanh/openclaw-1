@@ -62,6 +62,8 @@ export type OverviewProps = {
   onRefresh: () => void;
   onNavigate: (tab: string) => void;
   onRefreshLogs: () => void;
+  onGatewayRestart?: () => Promise<void>;
+  gatewayRestarting?: boolean;
 };
 
 const PAIRING_HINT_COPY: Record<
@@ -446,6 +448,26 @@ export function renderOverview(props: OverviewProps) {
                 ${t("overview.snapshot.channelsHint")}
               </div>
             `}
+        ${props.onGatewayRestart
+          ? html`
+              <div style="margin-top: 14px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                <button
+                  class="btn btn--sm ${props.gatewayRestarting ? "" : "danger"}"
+                  ?disabled=${props.gatewayRestarting || !props.connected}
+                  @click=${() => {
+                    if (window.confirm("Khởi động lại Gateway? Kết nối sẽ bị gián đoạn vài giây.")) {
+                      void props.onGatewayRestart!();
+                    }
+                  }}
+                >
+                  ${props.gatewayRestarting ? "⟳ Đang khởi động lại..." : "⟳ Restart Gateway"}
+                </button>
+                <span class="muted" style="font-size: 12px;">
+                  Áp dụng thay đổi cấu hình — tự kết nối lại sau vài giây.
+                </span>
+              </div>
+            `
+          : nothing}
       </div>
     </section>
 

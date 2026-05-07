@@ -6,6 +6,7 @@ import type {
   ChannelUiMetaEntry,
   ChannelsStatusSnapshot,
   DiscordStatus,
+  FacebookPageStatus,
   GoogleChatStatus,
   IMessageStatus,
   NostrProfile,
@@ -14,9 +15,12 @@ import type {
   SlackStatus,
   TelegramStatus,
   WhatsAppStatus,
+  ZaloStatus,
 } from "../types.ts";
 import { renderChannelConfigSection } from "./channels.config.ts";
 import { renderDiscordCard } from "./channels.discord.ts";
+import { renderQrScanPanel } from "./channels.qrscan.ts";
+import { renderFacebookPageCard } from "./channels.facebook.ts";
 import { renderGoogleChatCard } from "./channels.googlechat.ts";
 import { renderIMessageCard } from "./channels.imessage.ts";
 import { renderNostrCard } from "./channels.nostr.ts";
@@ -31,6 +35,7 @@ import { renderSlackCard } from "./channels.slack.ts";
 import { renderTelegramCard } from "./channels.telegram.ts";
 import type { ChannelKey, ChannelsChannelData, ChannelsProps } from "./channels.types.ts";
 import { renderWhatsAppCard } from "./channels.whatsapp.ts";
+import { renderZaloCard } from "./channels.zalo.ts";
 
 export function renderChannels(props: ChannelsProps) {
   const channels = props.snapshot?.channels as Record<string, unknown> | null;
@@ -42,6 +47,9 @@ export function renderChannels(props: ChannelsProps) {
   const signal = (channels?.signal ?? null) as SignalStatus | null;
   const imessage = (channels?.imessage ?? null) as IMessageStatus | null;
   const nostr = (channels?.nostr ?? null) as NostrStatus | null;
+  const zalouser = (channels?.zalouser ?? null) as ZaloStatus | null;
+  const zalo = (channels?.zalo ?? null) as ZaloStatus | null;
+  const facebook = (channels?.facebook ?? null) as FacebookPageStatus | null;
   const channelOrder = resolveChannelOrder(props.snapshot);
   const orderedChannels = channelOrder
     .map((key, index) => ({
@@ -59,6 +67,14 @@ export function renderChannels(props: ChannelsProps) {
   const partialWarnings = props.snapshot?.warnings?.filter((warning) => warning.trim()) ?? [];
 
   return html`
+    ${renderQrScanPanel(
+      { ...props, qrActiveTab: props.qrActiveTab, onQrTabChange: props.onQrTabChange },
+      zalouser,
+      zalo,
+      whatsapp,
+      telegram,
+    )}
+
     <section class="grid grid-cols-2">
       ${orderedChannels.map((channel) =>
         renderChannel(channel.key, props, {
@@ -70,6 +86,9 @@ export function renderChannels(props: ChannelsProps) {
           signal,
           imessage,
           nostr,
+          zalo,
+          zalouser,
+          facebook,
           channelAccounts: props.snapshot?.channelAccounts ?? null,
         }),
       )}
@@ -118,7 +137,7 @@ function resolveChannelOrder(snapshot: ChannelsStatusSnapshot | null): ChannelKe
   if (snapshot?.channelOrder?.length) {
     return snapshot.channelOrder;
   }
-  return ["whatsapp", "telegram", "discord", "googlechat", "slack", "signal", "imessage", "nostr"];
+  return ["zalo", "whatsapp", "telegram", "facebook", "discord", "googlechat", "slack", "signal", "imessage", "nostr"];
 }
 
 function renderChannel(key: ChannelKey, props: ChannelsProps, data: ChannelsChannelData) {
@@ -194,6 +213,19 @@ function renderChannel(key: ChannelKey, props: ChannelsProps, data: ChannelsChan
         onEditProfile: () => props.onNostrProfileEdit(accountId, profile),
       });
     }
+    case "zalo":
+      return renderZaloCard({
+        props,
+        zalo: data.zalo ?? undefined,
+        zalouser: data.zalouser,
+        accountCountLabel,
+      });
+    case "facebook":
+      return renderFacebookPageCard({
+        props,
+        facebook: data.facebook ?? undefined,
+        accountCountLabel,
+      });
     default:
       return renderGenericChannelCard(key, props, data.channelAccounts ?? {});
   }

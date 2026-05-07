@@ -39,6 +39,206 @@ function estimateReadingTimeLabel(wordCount: number) {
   return t("agents.files.minRead", { count: String(Math.max(1, Math.round(wordCount / 220))) });
 }
 
+const AGENT_FILE_DESCRIPTIONS: Record<string, { purpose: string; hint: string; example?: string }> = {
+  AGENTS: {
+    purpose: "Cấu hình chính của Agent — quy tắc trả lời, hành vi mặc định, giới hạn.",
+    hint: "Đây là file quan trọng nhất. Mọi chỉ dẫn chung cho agent đều viết ở đây.",
+    example: `## QUY TẮC TRẢ LỜI
+- LUÔN ưu tiên trả lời dựa trên Knowledge Base.
+- Câu hỏi nằm trong KB: trả lời chính xác theo KB.
+- Câu hỏi KHÔNG có trong KB: hướng dẫn liên hệ hỗ trợ.
+- Thân thiện, gần gũi nhưng vẫn rõ ràng.
+- Xưng "em", gọi người dùng "anh/chị"`,
+  },
+  SOUL: {
+    purpose: "Linh hồn & tính cách — agent là ai, cách suy nghĩ, giá trị cốt lõi.",
+    hint: "Định nghĩa nhân cách sâu: thân thiện, nghiêm túc, hài hước… Ảnh hưởng đến toàn bộ cách agent giao tiếp.",
+    example: `Tôi là trợ lý AI thân thiện, luôn cố gắng giúp đỡ hết lòng.
+Tôi tôn trọng người dùng, kiên nhẫn và không bao giờ phán xét.
+Khi không biết câu trả lời, tôi thành thật nói "em không chắc"
+thay vì bịa đặt thông tin.`,
+  },
+  TOOLS: {
+    purpose: "Công cụ được phép dùng — web search, đọc file, gọi API, v.v.",
+    hint: "Liệt kê và cấu hình từng tool. Nếu không khai báo ở đây, agent sẽ không biết tool tồn tại.",
+    example: `## CÔNG CỤ CÓ SẴN
+- web_search: Tìm kiếm thông tin mới nhất trên internet
+- read_file: Đọc nội dung file trong workspace
+- write_file: Tạo hoặc cập nhật file
+
+## HƯỚNG DẪN SỬ DỤNG
+Chỉ dùng web_search khi thông tin KHÔNG có trong KB.
+Luôn trích dẫn nguồn khi lấy thông tin từ web.`,
+  },
+  IDENTITY: {
+    purpose: "Danh tính & cách trình bày — tên, vai trò, phong cách giao tiếp.",
+    hint: "Agent tự giới thiệu thế nào, xưng hô ra sao, logo hay chữ ký nếu cần.",
+    example: `Tên: Trợ lý AI [Tên công ty]
+Vai trò: Hỗ trợ khách hàng và giải đáp thắc mắc
+Xưng: "em" - Gọi người dùng: "anh/chị"
+Ngôn ngữ chính: Tiếng Việt
+Giờ làm việc: 7:00 - 22:00 hàng ngày`,
+  },
+  USER: {
+    purpose: "Khai báo Chủ nhân & thông tin người dùng — ai sở hữu agent, sở thích, liên lạc.",
+    hint: "⭐ Khai báo Chủ nhân ở đây. Agent sẽ nhận diện chủ nhân và ưu tiên báo cáo cho người này.",
+    example: `## CHỦ NHÂN (OWNER)
+Tên: [Họ và tên]
+Zalo/Phone: [Số điện thoại hoặc username Zalo]
+Vai trò: Quản lý hệ thống
+Quyền hạn: Toàn quyền — được phép yêu cầu mọi thao tác
+
+## SỞ THÍCH NHẬN BÁO CÁO
+Hình thức: Tin nhắn Zalo
+Thời điểm: Hàng ngày lúc 8:00 sáng
+Nội dung muốn biết:
+- Số lượng tin nhắn đã xử lý
+- Các câu hỏi chưa trả lời được
+- Trạng thái hệ thống`,
+  },
+  HEARTBEAT: {
+    purpose: "Tác vụ định kỳ — report hàng ngày, kiểm tra hệ thống, nhắc nhở theo lịch.",
+    hint: "⭐ Cấu hình báo cáo hàng ngày ở đây. Dùng cú pháp cron: '0 8 * * *' = mỗi ngày 8:00 sáng.",
+    example: `## BÁO CÁO HÀNG NGÀY
+Lịch: Mỗi ngày lúc 8:00 sáng (cron: 0 8 * * *)
+
+Nhiệm vụ:
+1. Tổng kết hoạt động 24h qua
+2. Đếm số lượng hội thoại đã xử lý
+3. Liệt kê các câu hỏi không trả lời được
+4. Gửi báo cáo cho Chủ nhân qua Zalo
+
+Mẫu báo cáo:
+"Báo cáo ngày [ngày]:
+- Tổng hội thoại: X
+- Đã giải quyết: Y
+- Cần hỗ trợ thêm: Z vấn đề
+[Danh sách vấn đề nếu có]"
+
+## NHẮC NHỞ ĐỊNH KỲ
+Lịch: Thứ 2 hàng tuần lúc 9:00 (cron: 0 9 * * 1)
+Nhiệm vụ: Kiểm tra và cập nhật Knowledge Base nếu cần`,
+  },
+  MEMORY: {
+    purpose: "Bộ nhớ — cách agent lưu và nhớ lại thông tin từ các cuộc hội thoại trước.",
+    hint: "Kiểm soát những gì agent nhớ lâu dài: thói quen người dùng, sự kiện quan trọng, kiến thức tích lũy.",
+    example: `## THÔNG TIN CẦN GHI NHỚ
+- Tên và sở thích của người dùng thường xuyên
+- Các vấn đề đã được giải quyết để tránh hỏi lại
+- Phản hồi của người dùng về chất lượng trả lời
+
+## KHÔNG GHI NHỚ
+- Thông tin nhạy cảm (mật khẩu, số thẻ, v.v.)
+- Nội dung trò chuyện riêng tư không liên quan`,
+  },
+};
+
+function getAgentFileDescription(fileName: string) {
+  const key = fileName.replace(/\.md$/i, "").toUpperCase();
+  return AGENT_FILE_DESCRIPTIONS[key] ?? null;
+}
+
+function renderQuickGuide(onSelectFile: (name: string) => void, files: { name: string }[]) {
+  const hasFile = (name: string) => files.some((f) => f.name.toUpperCase() === name);
+  return html`
+    <section class="card" style="margin-bottom: 0; border-left: 3px solid var(--color-primary, #3b82f6);">
+      <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
+        <div>
+          <div class="card-title" style="font-size: 14px;">Hướng dẫn nhanh</div>
+          <div class="card-sub">Các cấu hình phổ biến nhất — nhấn để mở file tương ứng</div>
+        </div>
+      </div>
+
+      <div style="margin-top: 12px; display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 10px;">
+
+        <!-- Owner declaration -->
+        <div
+          style="padding: 12px; border: 1px solid var(--border); border-radius: 8px; cursor: ${hasFile("USER") ? "pointer" : "default"}; background: var(--surface-1);"
+          @click=${() => hasFile("USER") ? onSelectFile("USER.md") : void 0}
+        >
+          <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
+            <span style="font-size: 18px;">👤</span>
+            <span style="font-weight: 600; font-size: 13px;">Khai báo Chủ nhân</span>
+            <span style="font-size: 10px; background: var(--color-primary, #3b82f6); color: #fff; padding: 1px 6px; border-radius: 4px;">USER.md</span>
+          </div>
+          <div class="muted" style="font-size: 12px; line-height: 1.5;">
+            Tên, Zalo/Phone, quyền hạn của chủ nhân.<br/>
+            Agent nhận diện & ưu tiên báo cáo cho người này.
+          </div>
+          ${!hasFile("USER")
+            ? html`<div style="margin-top: 6px; font-size: 11px; color: var(--muted);">→ Tạo file USER.md để bắt đầu</div>`
+            : html`<div style="margin-top: 6px; font-size: 11px; color: var(--color-primary, #3b82f6);">→ Nhấn để mở và chỉnh sửa</div>`}
+        </div>
+
+        <!-- Daily report -->
+        <div
+          style="padding: 12px; border: 1px solid var(--border); border-radius: 8px; cursor: ${hasFile("HEARTBEAT") ? "pointer" : "default"}; background: var(--surface-1);"
+          @click=${() => hasFile("HEARTBEAT") ? onSelectFile("HEARTBEAT.md") : void 0}
+        >
+          <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
+            <span style="font-size: 18px;">📊</span>
+            <span style="font-weight: 600; font-size: 13px;">Report hàng ngày</span>
+            <span style="font-size: 10px; background: #f59e0b; color: #fff; padding: 1px 6px; border-radius: 4px;">HEARTBEAT.md</span>
+          </div>
+          <div class="muted" style="font-size: 12px; line-height: 1.5;">
+            Lịch báo cáo, nội dung tổng kết, gửi cho chủ nhân.<br/>
+            Ví dụ: <span class="mono" style="font-size: 11px;">0 8 * * *</span> = mỗi ngày 8:00 sáng.
+          </div>
+          ${!hasFile("HEARTBEAT")
+            ? html`<div style="margin-top: 6px; font-size: 11px; color: var(--muted);">→ Tạo file HEARTBEAT.md để bắt đầu</div>`
+            : html`<div style="margin-top: 6px; font-size: 11px; color: #f59e0b;">→ Nhấn để mở và chỉnh sửa</div>`}
+        </div>
+
+        <!-- Rules & behavior -->
+        <div
+          style="padding: 12px; border: 1px solid var(--border); border-radius: 8px; cursor: ${hasFile("AGENTS") ? "pointer" : "default"}; background: var(--surface-1);"
+          @click=${() => hasFile("AGENTS") ? onSelectFile("AGENTS.md") : void 0}
+        >
+          <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
+            <span style="font-size: 18px;">📋</span>
+            <span style="font-weight: 600; font-size: 13px;">Quy tắc & hành vi</span>
+            <span style="font-size: 10px; background: #6366f1; color: #fff; padding: 1px 6px; border-radius: 4px;">AGENTS.md</span>
+          </div>
+          <div class="muted" style="font-size: 12px; line-height: 1.5;">
+            Cách agent trả lời, giới hạn, ưu tiên dùng KB.<br/>
+            Đây là file quan trọng nhất, đọc trước tiên.
+          </div>
+          ${!hasFile("AGENTS")
+            ? html`<div style="margin-top: 6px; font-size: 11px; color: var(--muted);">→ Tạo file AGENTS.md để bắt đầu</div>`
+            : html`<div style="margin-top: 6px; font-size: 11px; color: #6366f1;">→ Nhấn để mở và chỉnh sửa</div>`}
+        </div>
+
+        <!-- Personality -->
+        <div
+          style="padding: 12px; border: 1px solid var(--border); border-radius: 8px; cursor: ${hasFile("SOUL") ? "pointer" : "default"}; background: var(--surface-1);"
+          @click=${() => hasFile("SOUL") ? onSelectFile("SOUL.md") : void 0}
+        >
+          <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
+            <span style="font-size: 18px;">✨</span>
+            <span style="font-weight: 600; font-size: 13px;">Tính cách & Linh hồn</span>
+            <span style="font-size: 10px; background: #ec4899; color: #fff; padding: 1px 6px; border-radius: 4px;">SOUL.md</span>
+          </div>
+          <div class="muted" style="font-size: 12px; line-height: 1.5;">
+            Nhân cách sâu: thân thiện, nghiêm túc, hài hước.<br/>
+            Ảnh hưởng đến toàn bộ cách giao tiếp của agent.
+          </div>
+          ${!hasFile("SOUL")
+            ? html`<div style="margin-top: 6px; font-size: 11px; color: var(--muted);">→ Tạo file SOUL.md để bắt đầu</div>`
+            : html`<div style="margin-top: 6px; font-size: 11px; color: #ec4899;">→ Nhấn để mở và chỉnh sửa</div>`}
+        </div>
+
+      </div>
+
+      <div class="callout info" style="margin-top: 12px; font-size: 12px;">
+        <strong>Cú pháp Cron (HEARTBEAT):</strong>&nbsp;
+        <span class="mono">0 8 * * *</span> = 8:00 sáng mỗi ngày &nbsp;|&nbsp;
+        <span class="mono">0 9 * * 1</span> = 9:00 sáng thứ Hai &nbsp;|&nbsp;
+        <span class="mono">0 */6 * * *</span> = mỗi 6 tiếng
+      </div>
+    </section>
+  `;
+}
+
 function getExtensionLabel(fileName: string) {
   const ext = fileName.split(".").pop()?.trim().toLowerCase();
   if (ext === "md" || ext === "markdown") {
@@ -422,6 +622,9 @@ export function renderAgentFiles(params: {
   agentId: string;
   agentFilesList: AgentsFilesListResult | null;
   agentFilesLoading: boolean;
+  onFileImport: (agentId: string, name: string, content: string) => void;
+  onFileDelete: (agentId: string, name: string) => void;
+  onFileCreate: (agentId: string, name: string) => void;
   agentFilesError: string | null;
   agentFileActive: string | null;
   agentFileContents: Record<string, string>;
@@ -469,19 +672,54 @@ export function renderAgentFiles(params: {
       : t("agents.files.updatedUnknown");
 
   return html`
+    ${renderQuickGuide(params.onSelectFile, files)}
+
     <section class="card">
       <div class="row" style="justify-content: space-between;">
         <div>
           <div class="card-title">${t("agents.files.coreFilesTitle")}</div>
           <div class="card-sub">${t("agents.files.coreFilesSubtitle")}</div>
         </div>
-        <button
-          class="btn btn--sm"
-          ?disabled=${params.agentFilesLoading}
-          @click=${() => params.onLoadFiles(params.agentId)}
-        >
-          ${params.agentFilesLoading ? t("common.loading") : t("common.refresh")}
-        </button>
+        <div class="row" style="gap: 6px;">
+          <button
+            class="btn btn--sm"
+            ?disabled=${params.agentFilesLoading}
+            @click=${() => {
+              const name = window.prompt(t("agents.files.newFileName"));
+              if (name?.trim()) {
+                params.onFileCreate(params.agentId, name.trim());
+              }
+            }}
+          >
+            ${t("agents.files.newFile")}
+          </button>
+          <label class="btn btn--sm" style="cursor: pointer; margin: 0;">
+            ${t("agents.files.importFile")}
+            <input
+              type="file"
+              style="display: none;"
+              accept=".md,.txt,.json,.yaml,.yml"
+              @change=${(e: Event) => {
+                const input = e.target as HTMLInputElement;
+                const file = input.files?.[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = () => {
+                  params.onFileImport(params.agentId, file.name, reader.result as string);
+                };
+                reader.readAsText(file);
+                input.value = "";
+              }}
+            />
+          </label>
+          <button
+            class="btn btn--sm"
+            ?disabled=${params.agentFilesLoading}
+            @click=${() => params.onLoadFiles(params.agentId)}
+          >
+            ${params.agentFilesLoading ? t("common.loading") : t("common.refresh")}
+          </button>
+        </div>
       </div>
       ${list
         ? html`<div class="muted mono" style="margin-top: 8px;">
@@ -504,11 +742,13 @@ export function renderAgentFiles(params: {
                 ${files.map((file) => {
                   const isActive = active === file.name;
                   const label = file.name.replace(/\.md$/i, "");
+                  const desc = getAgentFileDescription(file.name);
                   return html`
                     <button
                       class="agent-tab ${isActive ? "active" : ""} ${file.missing
                         ? "agent-tab--missing"
                         : ""}"
+                      title=${desc ? desc.purpose : label}
                       @click=${() => params.onSelectFile(file.name)}
                     >
                       ${label}${file.missing
@@ -523,6 +763,33 @@ export function renderAgentFiles(params: {
                     ${t("agents.files.selectFile")}
                   </div>`
                 : html`
+                    ${(() => {
+                      const desc = getAgentFileDescription(activeEntry.name ?? active ?? "");
+                      if (!desc) return nothing;
+                      return html`
+                        <div style="margin-top: 10px; padding: 10px 14px; background: var(--surface-2, #f8f9fa); border-left: 3px solid var(--color-primary, #3b82f6); border-radius: 0 6px 6px 0; font-size: 13px;">
+                          <div style="font-weight: 600; color: var(--text, #111);">${desc.purpose}</div>
+                          <div style="margin-top: 4px; color: var(--muted, #6b7280);">${desc.hint}</div>
+                          ${desc.example && (!baseContent || baseContent.trim() === "")
+                            ? html`
+                                <details style="margin-top: 8px;">
+                                  <summary style="cursor: pointer; font-size: 12px; color: var(--color-primary, #3b82f6); user-select: none;">
+                                    📄 Xem mẫu nội dung để bắt đầu
+                                  </summary>
+                                  <pre style="margin-top: 8px; padding: 10px; background: var(--surface-1, #fff); border: 1px solid var(--border); border-radius: 6px; font-size: 12px; white-space: pre-wrap; overflow-x: auto;">${desc.example}</pre>
+                                  <button
+                                    class="btn btn--sm"
+                                    style="margin-top: 6px;"
+                                    @click=${() => params.onFileDraftChange(active!, desc.example!)}
+                                  >
+                                    📋 Dùng mẫu này
+                                  </button>
+                                </details>
+                              `
+                            : nothing}
+                        </div>
+                      `;
+                    })()}
                     <div class="agent-file-header" style="margin-top: 14px;">
                       <div>
                         <div class="agent-file-sub mono">${activeEntry.path}</div>
@@ -554,6 +821,21 @@ export function renderAgentFiles(params: {
                           @click=${() => params.onFileSave(activeEntry.name)}
                         >
                           ${params.agentFileSaving ? t("common.saving") : t("common.save")}
+                        </button>
+                        <button
+                          class="btn btn--sm danger"
+                          ?disabled=${params.agentFileSaving}
+                          @click=${() => {
+                            const msg = t("agents.files.deleteConfirm").replace(
+                              "{name}",
+                              activeEntry.name,
+                            );
+                            if (window.confirm(msg)) {
+                              params.onFileDelete(params.agentId, activeEntry.name);
+                            }
+                          }}
+                        >
+                          ${t("agents.files.deleteFile")}
                         </button>
                       </div>
                     </div>

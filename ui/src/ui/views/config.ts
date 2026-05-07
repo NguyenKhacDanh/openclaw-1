@@ -17,6 +17,11 @@ import {
   type JsonSchema,
 } from "./config-form.shared.ts";
 import { analyzeConfigSchema, renderConfigForm, SECTION_META } from "./config-form.ts";
+import {
+  renderApiKeyPriority,
+  type ApiKeyEntry,
+  type ApiKeyPriorityProps,
+} from "./config-apikeys.ts";
 
 const BORDER_RADIUS_LABELS: Record<BorderRadiusStop, string> = {
   0: "None",
@@ -101,7 +106,9 @@ export type ConfigProps = {
   onWebPushUnsubscribe?: () => void;
   onWebPushTest?: () => void;
   onRequestUpdate?: () => void;
+  apiKeys?: ApiKeyPriorityProps;
 };
+export type { ApiKeyEntry, ApiKeyPriorityProps };
 
 // SVG Icons for sidebar (Lucide-style)
 const sidebarIcons = {
@@ -457,6 +464,13 @@ const SECTION_CATEGORIES: SectionCategory[] = [
       { key: "__appearance__", label: "Theme" },
       { key: "ui", label: "UI" },
       { key: "wizard", label: "Setup Wizard" },
+    ],
+  },
+  {
+    id: "integrations",
+    label: "Integrations",
+    sections: [
+      { key: "__apikeys__", label: "API Keys & Ưu tiên Model" },
     ],
   },
 ];
@@ -1196,7 +1210,7 @@ export function renderConfig(props: ConfigProps) {
   // Build categorised nav from schema - only include sections that exist in the schema
   const schemaProps = analysis.schema?.properties ?? {};
 
-  const VIRTUAL_SECTIONS = new Set(["__appearance__", "__notifications__"]);
+  const VIRTUAL_SECTIONS = new Set(["__appearance__", "__notifications__", "__apikeys__"]);
   const visibleCategories = SECTION_CATEGORIES.map((cat) =>
     Object.assign({}, cat, {
       sections: cat.sections.filter(
@@ -1748,6 +1762,10 @@ export function renderConfig(props: ConfigProps) {
               ? includeVirtualSections
                 ? renderNotificationsSection(props)
                 : nothing
+              : props.activeSection === "__apikeys__"
+                ? includeVirtualSections && props.apiKeys
+                  ? renderApiKeyPriority(props.apiKeys)
+                  : nothing
               : formMode === "form"
                 ? html`
                     ${showAppearanceOnRoot ? renderAppearanceSection(props) : nothing}

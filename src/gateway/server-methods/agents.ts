@@ -46,6 +46,11 @@ import {
   validateAgentsFilesGetParams,
   validateAgentsFilesListParams,
   validateAgentsFilesSetParams,
+  validateAgentsFilesDeleteParams,
+  validateAgentsScenarioListParams,
+  validateAgentsScenarioGetParams,
+  validateAgentsScenarioSetParams,
+  validateAgentsScenarioDeleteParams,
   validateAgentsListParams,
   validateAgentsUpdateParams,
 } from "../protocol/index.js";
@@ -786,5 +791,164 @@ export const agentsHandlers: GatewayRequestHandlers = {
       },
       undefined,
     );
+  },
+
+  "agents.files.delete": async ({ params, respond, context }) => {
+    if (!validateAgentsFilesDeleteParams(params)) {
+      respondInvalidMethodParams(
+        respond,
+        "agents.files.delete",
+        validateAgentsFilesDeleteParams.errors,
+      );
+      return;
+    }
+    const resolved = resolveAgentWorkspaceFileOrRespondError(
+      params,
+      respond,
+      context.getRuntimeConfig(),
+    );
+    if (!resolved) {
+      return;
+    }
+    const { agentId, workspaceDir, name } = resolved;
+    const filePath = path.join(workspaceDir, name);
+    try {
+      await fs.unlink(filePath);
+    } catch (err: unknown) {
+      const code = (err as NodeJS.ErrnoException)?.code;
+      if (code !== "ENOENT") {
+        throw err;
+      }
+    }
+    respond(true, { ok: true, agentId, name }, undefined);
+  },
+
+  "agents.scenario.list": async ({ params, respond, context }) => {
+    if (!validateAgentsScenarioListParams(params)) {
+      respondInvalidMethodParams(
+        respond,
+        "agents.scenario.list",
+        validateAgentsScenarioListParams.errors,
+      );
+      return;
+    }
+    const cfg = context.getRuntimeConfig();
+    const agentId = resolveAgentIdOrError(params.agentId, cfg);
+    if (!agentId) {
+      respond(false, undefined, errorShape(ErrorCodes.INVALID_REQUEST, "unknown agent id"));
+      return;
+    }
+    const workspaceDir = resolveAgentWorkspaceDir(cfg, agentId);
+    const scenariosDir = path.join(workspaceDir, "scenarios");
+    let files: Array<{ name: string; size?: number; updatedAtMs?: number }> = [];
+    try {
+      const entries = await fs.readdir(scenariosDir, { withFileTypes: true });
+      const fileEntries = entries.filter((e) => e.isFile() && /\.(json|yaml|yml|txt|md)$/i.test(e.name));
+      files = await Promise.all(
+        fileEntries.map(async (e) => {
+          try {
+            const stat = await fs.stat(path.join(scenariosDir, e.name));
+            return { name: e.name, size: stat.size, updatedAtMs: Math.floor(stat.mtimeMs) };
+          } catch {
+            return { name: e.name };
+          }
+        }),
+      );
+    } catch {
+      // scenarios dir doesn't exist yet — return empty list
+    }
+    respond(true, { agentId, scenariosDir, files }, undefined);
+  },
+
+  "agents.scenario.get": async ({ params, respond, context }) => {
+    if (!validateAgentsScenarioGetParams(params)) {
+      respondInvalidMethodParams(
+        respond,
+        "agents.scenario.get",
+        validateAgentsScenarioGetParams.errors,
+      );
+      return;
+    }
+    const cfg = context.getRuntimeConfig();
+    const agentId = resolveAgentIdOrError(params.agentId, cfg);
+    if (!agentId) {
+      respond(false, undefined, errorShape(ErrorCodes.INVALID_REQUEST, "unknown agent id"));
+      return;
+    }
+    const name = path.basename(params.name);
+    if (!name || name !== params.name.trim()) {
+      respond(false, undefined, errorShape(ErrorCodes.INVALID_REQUEST, "invalid file name"));
+      return;
+    }
+    const workspaceDir = resolveAgentWorkspaceDir(cfg, agentId);
+    const filePath = path.join(workspaceDir, "scenarios", name);
+    let content: string;
+    try {
+      content = await fs.readFile(filePath, "utf-8");
+    } catch (err: unknown) {
+      const code = (err as NodeJS.ErrnoException)?.code;
+      if (code === "ENOENT") {
+        respond(false, undefined, errorShape(ErrorCodes.NOT_FOUND, `scenario file not found: ${name}`));
+        return;
+      }
+      throw err;
+    }
+    respond(true, { agentId, name, content }, undefined);
+  },
+
+  "agents.scenario.set": async ({ params, respond, context }) => {
+    if (!validateAgentsScenarioSetParams(params)) {
+      respondInvalidMethodParams(
+        respond,
+        "agents.scenario.set",
+        validateAgentsScenarioSetParams.errors,
+      );
+      return;
+    }
+    const cfg = context.getRuntimeConfig();
+    const agentId = resolveAgentIdOrError(params.agentId, cfg);
+    if (!agentId) {
+      respond(false, undefined, errorShape(ErrorCodes.INVALID_REQUEST, "unknown agent id"));
+      return;
+    }
+    const name = path.basename(params.name);
+    if (!name || name !== params.name.trim() || !/\.(json|yaml|yml|txt|md)$/i.test(name)) {
+      respond(false, undefined, errorShape(ErrorCodes.INVALID_REQUEST, "invalid scenario file name"));
+      return;
+    }
+    const workspaceDir = resolveAgentWorkspaceDir(cfg, agentId);
+    const scenariosDir = path.join(workspaceDir, "scenarios");
+    await fs.mkdir(scenariosDir, { recursive: true });
+    await fs.writeFile(path.join(scenariosDir, name), params.content, "utf-8");
+    respond(true, { ok: true, agentId, name }, undefined);
+  },
+
+  "agents.scenario.delete": async ({ params, respond, context }) => {
+    if (!validateAgentsScenarioDeleteParams(params)) {
+      respondInvalidMethodParams(
+        respond,
+        "agents.scenario.delete",
+        validateAgentsScenarioDeleteParams.errors,
+      );
+      return;
+    }
+    const cfg = context.getRuntimeConfig();
+    const agentId = resolveAgentIdOrError(params.agentId, cfg);
+    if (!agentId) {
+      respond(false, undefined, errorShape(ErrorCodes.INVALID_REQUEST, "unknown agent id"));
+      return;
+    }
+    const name = path.basename(params.name);
+    const workspaceDir = resolveAgentWorkspaceDir(cfg, agentId);
+    const filePath = path.join(workspaceDir, "scenarios", name);
+    try {
+      await fs.unlink(filePath);
+    } catch (err: unknown) {
+      const code = (err as NodeJS.ErrnoException)?.code;
+      if (code !== "ENOENT") {
+        throw err;
+      }
+    }
+    respond(true, { ok: true, agentId, name }, undefined);
   },
 };

@@ -38,6 +38,26 @@ import {
   AgentsFilesSetParamsSchema,
   type AgentsFilesSetResult,
   AgentsFilesSetResultSchema,
+  type AgentsFilesDeleteParams,
+  AgentsFilesDeleteParamsSchema,
+  type AgentsFilesDeleteResult,
+  AgentsFilesDeleteResultSchema,
+  type AgentsScenarioListParams,
+  AgentsScenarioListParamsSchema,
+  type AgentsScenarioListResult,
+  AgentsScenarioListResultSchema,
+  type AgentsScenarioGetParams,
+  AgentsScenarioGetParamsSchema,
+  type AgentsScenarioGetResult,
+  AgentsScenarioGetResultSchema,
+  type AgentsScenarioSetParams,
+  AgentsScenarioSetParamsSchema,
+  type AgentsScenarioSetResult,
+  AgentsScenarioSetResultSchema,
+  type AgentsScenarioDeleteParams,
+  AgentsScenarioDeleteParamsSchema,
+  type AgentsScenarioDeleteResult,
+  AgentsScenarioDeleteResultSchema,
   type ArtifactsDownloadParams,
   ArtifactsDownloadParamsSchema,
   type ArtifactsDownloadResult,
@@ -422,6 +442,21 @@ export const validateAgentsFilesGetParams = ajv.compile<AgentsFilesGetParams>(
 );
 export const validateAgentsFilesSetParams = ajv.compile<AgentsFilesSetParams>(
   AgentsFilesSetParamsSchema,
+);
+export const validateAgentsFilesDeleteParams = ajv.compile<AgentsFilesDeleteParams>(
+  AgentsFilesDeleteParamsSchema,
+);
+export const validateAgentsScenarioListParams = ajv.compile<AgentsScenarioListParams>(
+  AgentsScenarioListParamsSchema,
+);
+export const validateAgentsScenarioGetParams = ajv.compile<AgentsScenarioGetParams>(
+  AgentsScenarioGetParamsSchema,
+);
+export const validateAgentsScenarioSetParams = ajv.compile<AgentsScenarioSetParams>(
+  AgentsScenarioSetParamsSchema,
+);
+export const validateAgentsScenarioDeleteParams = ajv.compile<AgentsScenarioDeleteParams>(
+  AgentsScenarioDeleteParamsSchema,
 );
 export const validateArtifactsListParams =
   ajv.compile<ArtifactsListParams>(ArtifactsListParamsSchema);
@@ -865,6 +900,16 @@ export {
   AgentsFilesGetResultSchema,
   AgentsFilesSetParamsSchema,
   AgentsFilesSetResultSchema,
+  AgentsFilesDeleteParamsSchema,
+  AgentsFilesDeleteResultSchema,
+  AgentsScenarioListParamsSchema,
+  AgentsScenarioListResultSchema,
+  AgentsScenarioGetParamsSchema,
+  AgentsScenarioGetResultSchema,
+  AgentsScenarioSetParamsSchema,
+  AgentsScenarioSetResultSchema,
+  AgentsScenarioDeleteParamsSchema,
+  AgentsScenarioDeleteResultSchema,
   AgentsListParamsSchema,
   AgentsListResultSchema,
   CommandsListParamsSchema,
@@ -1074,4 +1119,14 @@ export type {
   UpdateStatusParams,
   UpdateRunParams,
   ChatInjectParams,
+  AgentsFilesDeleteParams,
+  AgentsFilesDeleteResult,
+  AgentsScenarioListParams,
+  AgentsScenarioListResult,
+  AgentsScenarioGetParams,
+  AgentsScenarioGetResult,
+  AgentsScenarioSetParams,
+  AgentsScenarioSetResult,
+  AgentsScenarioDeleteParams,
+  AgentsScenarioDeleteResult,
 };

@@ -19,6 +19,7 @@ import {
   renderAgentChannels,
   renderAgentCron,
 } from "./agents-panels-status-files.ts";
+import { renderAgentScenarioPanel, type ScenarioPanelState } from "./agents-panels-scenario.ts";
 export type { AgentsPanel } from "./agents.types.ts";
 import { renderAgentTools, renderAgentSkills } from "./agents-panels-tools-skills.ts";
 import { agentBadgeText, buildAgentContext, normalizeAgentLabel } from "./agents-utils.ts";
@@ -86,6 +87,7 @@ export type AgentsProps = {
   channels: ChannelsState;
   cron: CronState;
   agentFiles: AgentFilesState;
+  agentScenario?: ScenarioPanelState;
   agentIdentityLoading: boolean;
   agentIdentityError: string | null;
   agentIdentityById: Record<string, AgentIdentityResult>;
@@ -103,6 +105,16 @@ export type AgentsProps = {
   onFileDraftChange: (name: string, content: string) => void;
   onFileReset: (name: string) => void;
   onFileSave: (name: string) => void;
+  onFileImport: (agentId: string, name: string, content: string) => void;
+  onFileDelete: (agentId: string, name: string) => void;
+  onFileCreate: (agentId: string, name: string) => void;
+  onScenarioLoad: (agentId: string) => void;
+  onScenarioSelect: (name: string) => void;
+  onScenarioDraftChange: (name: string, content: string) => void;
+  onScenarioSave: (name: string) => void;
+  onScenarioDelete: (agentId: string, name: string) => void;
+  onScenarioImport: (agentId: string, name: string, content: string) => void;
+  onScenarioCreate: (agentId: string, name: string, content: string) => void;
   onToolsProfileChange: (agentId: string, profile: string | null, clearAllow: boolean) => void;
   onToolsOverridesChange: (agentId: string, alsoAllow: string[], deny: string[]) => void;
   onConfigReload: () => void;
@@ -140,6 +152,7 @@ export function renderAgents(props: AgentsProps) {
     : null;
   const tabCounts: Record<string, number | null> = {
     files: props.agentFiles.list?.files?.length ?? null,
+    scenario: props.agentScenario?.list?.length ?? null,
     skills: selectedSkillCount,
     channels: channelEntryCount,
     cron: cronJobCount || null,
@@ -261,6 +274,22 @@ export function renderAgents(props: AgentsProps) {
                     onFileDraftChange: props.onFileDraftChange,
                     onFileReset: props.onFileReset,
                     onFileSave: props.onFileSave,
+                    onFileImport: props.onFileImport,
+                    onFileDelete: props.onFileDelete,
+                    onFileCreate: props.onFileCreate,
+                  })
+                : nothing}
+              ${props.activePanel === "scenario" && props.agentScenario
+                ? renderAgentScenarioPanel({
+                    agentId: selectedAgent.id,
+                    state: props.agentScenario,
+                    onLoad: props.onScenarioLoad,
+                    onSelect: props.onScenarioSelect,
+                    onDraftChange: props.onScenarioDraftChange,
+                    onSave: props.onScenarioSave,
+                    onDelete: props.onScenarioDelete,
+                    onImport: props.onScenarioImport,
+                    onCreate: props.onScenarioCreate,
                   })
                 : nothing}
               ${props.activePanel === "tools"
@@ -356,6 +385,7 @@ function renderAgentTabs(
   const tabs: Array<{ id: AgentsPanel; label: string }> = [
     { id: "overview", label: t("agents.tabs.overview") },
     { id: "files", label: t("agents.tabs.files") },
+    { id: "scenario", label: t("agents.tabs.scenario") },
     { id: "tools", label: t("agents.tabs.tools") },
     { id: "skills", label: t("agents.tabs.skills") },
     { id: "channels", label: t("agents.tabs.channels") },

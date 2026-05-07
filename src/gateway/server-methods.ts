@@ -10,6 +10,7 @@ import {
 import { isRoleAuthorizedForMethod, parseGatewayRole } from "./role-policy.js";
 import { agentHandlers } from "./server-methods/agent.js";
 import { agentsHandlers } from "./server-methods/agents.js";
+import { apiKeyHandlers } from "./server-methods/api-keys.js";
 import { artifactsHandlers } from "./server-methods/artifacts.js";
 import { channelsHandlers } from "./server-methods/channels.js";
 import { chatHandlers } from "./server-methods/chat.js";
@@ -31,6 +32,7 @@ import { nodePendingHandlers } from "./server-methods/nodes-pending.js";
 import { nodeHandlers } from "./server-methods/nodes.js";
 import { pluginHostHookHandlers } from "./server-methods/plugin-host-hooks.js";
 import { pushHandlers } from "./server-methods/push.js";
+import { qrHandlers } from "./server-methods/qr.js";
 import { restartHandlers } from "./server-methods/restart.js";
 import { sendHandlers } from "./server-methods/send.js";
 import { sessionsHandlers } from "./server-methods/sessions.js";
@@ -118,11 +120,13 @@ export const coreGatewayHandlers: GatewayRequestHandlers = {
   ...nodeHandlers,
   ...nodePendingHandlers,
   ...pushHandlers,
+  ...qrHandlers,
   ...restartHandlers,
   ...sendHandlers,
   ...usageHandlers,
   ...agentHandlers,
   ...agentsHandlers,
+  ...apiKeyHandlers,
   ...artifactsHandlers,
 };
 

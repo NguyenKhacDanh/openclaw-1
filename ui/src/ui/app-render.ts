@@ -341,6 +341,7 @@ const INFRASTRUCTURE_SECTION_KEYS = [
   "mcp",
 ] as const;
 const AI_AGENTS_SECTION_KEYS = [
+  "__apikeys__",
   "agents",
   "models",
   "skills",
@@ -378,6 +379,7 @@ type ConfigTabOverrides = Pick<
       | "onWebPushSubscribe"
       | "onWebPushUnsubscribe"
       | "onWebPushTest"
+      | "apiKeys"
     >
   >;
 
@@ -1288,10 +1290,43 @@ export function renderApp(state: AppViewState) {
           onSectionChange: (section) => {
             state.aiAgentsActiveSection = section;
             state.aiAgentsActiveSubsection = null;
+            if (section === "__apikeys__") void state.handleApiKeyLoad();
           },
           onSubsectionChange: (section) => (state.aiAgentsActiveSubsection = section),
           navRootLabel: "AI & Agents",
           includeSections: [...AI_AGENTS_SECTION_KEYS],
+          includeVirtualSections: true,
+          apiKeys: {
+            keys: state.apiKeyEntries,
+            loading: state.apiKeyLoading,
+            saving: state.apiKeySaving,
+            error: state.apiKeyError,
+            addingKey: state.apiKeyAddingKey,
+            newKeyProvider: state.newApiKeyProvider,
+            newKeyAlias: state.newApiKeyAlias,
+            newKeyValue: state.newApiKeyValue,
+            newKeyModels: state.newApiKeyModels,
+            editingId: state.apiKeyEditingId,
+            editAlias: state.apiKeyEditAlias,
+            editKeyValue: state.apiKeyEditValue,
+            editModels: state.apiKeyEditModels,
+            modelCatalog: state.chatModelCatalog ?? [],
+            onStartAdd: () => state.handleApiKeyStartAdd(),
+            onCancelAdd: () => state.handleApiKeyCancelAdd(),
+            onNewKeyProviderChange: (p) => state.handleApiKeyProviderChange(p),
+            onNewKeyAliasChange: (a) => state.handleApiKeyAliasChange(a),
+            onNewKeyValueChange: (v) => state.handleApiKeyValueChange(v),
+            onNewKeyModelsChange: (m) => state.handleApiKeyModelsChange(m),
+            onConfirmAdd: () => void state.handleApiKeyConfirmAdd(),
+            onDelete: (id) => void state.handleApiKeyDelete(id),
+            onDragReorder: (ids) => void state.handleApiKeyDragReorder(ids),
+            onStartEdit: (key) => state.handleApiKeyStartEdit(key),
+            onCancelEdit: () => state.handleApiKeyCancelEdit(),
+            onEditAliasChange: (a) => state.handleApiKeyEditAliasChange(a),
+            onEditKeyValueChange: (v) => state.handleApiKeyEditValueChange(v),
+            onEditModelsChange: (m) => state.handleApiKeyEditModelsChange(m),
+            onConfirmEdit: () => void state.handleApiKeyConfirmEdit(),
+          },
         });
       default:
         return nothing;
@@ -1667,6 +1702,8 @@ export function renderApp(state: AppViewState) {
               onRefresh: () => state.loadOverview({ refresh: true }),
               onNavigate: (tab) => state.setTab(tab as import("./navigation.ts").Tab),
               onRefreshLogs: () => state.loadOverview({ refresh: true }),
+              onGatewayRestart: () => state.handleGatewayRestart(),
+              gatewayRestarting: state.gatewayRestarting,
             })
           : nothing}
         ${state.tab === "channels"
@@ -1677,10 +1714,28 @@ export function renderApp(state: AppViewState) {
                 snapshot: state.channelsSnapshot,
                 lastError: state.channelsError,
                 lastSuccessAt: state.channelsLastSuccess,
+                qrActiveTab: state.qrActiveTab,
+                onQrTabChange: (tab) => state.handleQrTabChange(tab),
+                zaloTokenInput: state.zaloTokenInput,
+                zaloOaTokenInput: state.zaloOaTokenInput,
+                zaloOaIdInput: state.zaloOaIdInput,
+                telegramTokenInput: state.telegramTokenInput,
+                onZaloTokenInput: (v) => state.handleZaloTokenInput(v),
+                onZaloOaTokenInput: (v) => state.handleZaloOaTokenInput(v),
+                onZaloOaIdInput: (v) => state.handleZaloOaIdInput(v),
+                onZaloOaSave: () => state.handleZaloOaSave(),
+                onTelegramTokenInput: (v) => state.handleTelegramTokenInput(v),
+                onTelegramTokenSave: () => state.handleTelegramTokenSave(),
                 whatsappMessage: state.whatsappLoginMessage,
                 whatsappQrDataUrl: state.whatsappLoginQrDataUrl,
                 whatsappConnected: state.whatsappLoginConnected,
                 whatsappBusy: state.whatsappBusy,
+                zaloMessage: state.zaloMessage,
+                zaloQrDataUrl: state.zaloQrDataUrl,
+                zaloConnected: state.zaloConnected,
+                zaloBusy: state.zaloBusy,
+                facebookPostDraft: state.facebookPostDraft,
+                facebookBusy: state.facebookBusy,
                 configSchema: state.configSchema,
                 configSchemaLoading: state.configSchemaLoading,
                 configForm: state.configForm,
@@ -1693,6 +1748,15 @@ export function renderApp(state: AppViewState) {
                 onWhatsAppStart: (force) => state.handleWhatsAppStart(force),
                 onWhatsAppWait: () => state.handleWhatsAppWait(),
                 onWhatsAppLogout: () => state.handleWhatsAppLogout(),
+                onZaloStart: (force) => state.handleZaloStart(force),
+                onZaloTokenSave: () => state.handleZaloTokenSave(),
+                onZaloWait: () => state.handleZaloWait(),
+                onZaloLogout: () => state.handleZaloLogout(),
+                onZaloSetMode: (mode) => state.handleZaloSetMode(mode),
+                onFacebookPost: () => state.handleFacebookPost(),
+                onFacebookSchedulePost: () => state.handleFacebookSchedulePost(),
+                onFacebookPostDraftChange: (draft) => state.handleFacebookPostDraftChange(draft),
+                onFacebookRefreshToken: () => state.handleFacebookRefreshToken(),
                 onConfigPatch: (path, value) => updateConfigFormValue(state, path, value),
                 onConfigSave: () => state.handleChannelConfigSave(),
                 onConfigReload: () => state.handleChannelConfigReload(),

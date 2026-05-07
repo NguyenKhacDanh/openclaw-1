@@ -278,6 +278,34 @@ export type MSTeamsStatus = {
   lastProbeAt?: number | null;
 };
 
+export type ZaloStatus = {
+  configured: boolean;
+  linked: boolean;
+  authAgeMs?: number | null;
+  running: boolean;
+  connected: boolean;
+  phone?: string | null;
+  displayName?: string | null;
+  lastConnectedAt?: number | null;
+  lastMessageAt?: number | null;
+  lastError?: string | null;
+  botMode?: "oa" | "personal" | null;
+  oaId?: string | null;
+  oaName?: string | null;
+};
+
+export type FacebookPageStatus = {
+  configured: boolean;
+  running: boolean;
+  pageId?: string | null;
+  pageName?: string | null;
+  tokenSource?: string | null;
+  tokenExpiresAt?: number | null;
+  lastPostAt?: number | null;
+  lastError?: string | null;
+  instagramLinked?: boolean | null;
+};
+
 export type ConfigSnapshotIssue = {
   path: string;
   message: string;

@@ -3,6 +3,7 @@ import type {
   ChannelsStatusSnapshot,
   ConfigUiHints,
   DiscordStatus,
+  FacebookPageStatus,
   GoogleChatStatus,
   IMessageStatus,
   NostrProfile,
@@ -11,6 +12,7 @@ import type {
   SlackStatus,
   TelegramStatus,
   WhatsAppStatus,
+  ZaloStatus,
 } from "../types.ts";
 import type { NostrProfileFormState } from "./channels.nostr-profile-form.ts";
 
@@ -22,10 +24,34 @@ export type ChannelsProps = {
   snapshot: ChannelsStatusSnapshot | null;
   lastError: string | null;
   lastSuccessAt: number | null;
+  // WhatsApp
   whatsappMessage: string | null;
   whatsappQrDataUrl: string | null;
   whatsappConnected: boolean | null;
   whatsappBusy: boolean;
+  // QR scan panel
+  qrActiveTab: "zalo" | "zalo-oa" | "whatsapp" | "telegram";
+  onQrTabChange: (tab: "zalo" | "zalo-oa" | "whatsapp" | "telegram") => void;
+  zaloTokenInput: string;
+  zaloOaTokenInput: string;
+  zaloOaIdInput: string;
+  zaloOaWebhookUrl?: string;
+  telegramTokenInput: string;
+  onZaloTokenInput: (v: string) => void;
+  onZaloOaTokenInput: (v: string) => void;
+  onZaloOaIdInput: (v: string) => void;
+  onZaloOaSave: () => void;
+  onTelegramTokenInput: (v: string) => void;
+  onTelegramTokenSave: () => void;
+  // Zalo
+  zaloMessage: string | null;
+  zaloQrDataUrl: string | null;
+  zaloConnected: boolean | null;
+  zaloBusy: boolean;
+  // Facebook Page
+  facebookPostDraft: string | null;
+  facebookBusy: boolean;
+  // Config
   configSchema: unknown;
   configSchemaLoading: boolean;
   configForm: Record<string, unknown> | null;
@@ -34,10 +60,20 @@ export type ChannelsProps = {
   configFormDirty: boolean;
   nostrProfileFormState: NostrProfileFormState | null;
   nostrProfileAccountId: string | null;
+  // Handlers
   onRefresh: (probe: boolean) => void;
   onWhatsAppStart: (force: boolean) => void;
   onWhatsAppWait: () => void;
   onWhatsAppLogout: () => void;
+  onZaloStart: (force: boolean) => void;
+  onZaloTokenSave: () => void;
+  onZaloWait: () => void;
+  onZaloLogout: () => void;
+  onZaloSetMode: (mode: "personal" | "oa") => void;
+  onFacebookPost: () => void;
+  onFacebookSchedulePost: () => void;
+  onFacebookPostDraftChange: (draft: string | null) => void;
+  onFacebookRefreshToken: () => void;
   onConfigPatch: (path: Array<string | number>, value: unknown) => void;
   onConfigSave: () => void;
   onConfigReload: () => void;
@@ -58,5 +94,8 @@ export type ChannelsChannelData = {
   signal?: SignalStatus | null;
   imessage?: IMessageStatus | null;
   nostr?: NostrStatus | null;
+  zalo?: ZaloStatus | null;
+  zalouser?: ZaloStatus | null;
+  facebook?: FacebookPageStatus | null;
   channelAccounts?: Record<string, ChannelAccountSnapshot[]> | null;
 };

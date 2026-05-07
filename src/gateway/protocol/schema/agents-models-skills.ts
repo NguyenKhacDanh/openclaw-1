@@ -193,6 +193,77 @@ export const AgentsFilesSetResultSchema = Type.Object(
   { additionalProperties: false },
 );
 
+export const AgentsFilesDeleteParamsSchema = Type.Object(
+  {
+    agentId: NonEmptyString,
+    name: NonEmptyString,
+  },
+  { additionalProperties: false },
+);
+
+export const AgentsFilesDeleteResultSchema = Type.Object(
+  {
+    ok: Type.Literal(true),
+    agentId: NonEmptyString,
+    name: NonEmptyString,
+  },
+  { additionalProperties: false },
+);
+
+export const AgentsScenarioListParamsSchema = Type.Object(
+  { agentId: NonEmptyString },
+  { additionalProperties: false },
+);
+
+export const AgentsScenarioListResultSchema = Type.Object(
+  {
+    agentId: NonEmptyString,
+    scenariosDir: NonEmptyString,
+    files: Type.Array(
+      Type.Object({
+        name: NonEmptyString,
+        size: Type.Optional(Type.Number()),
+        updatedAtMs: Type.Optional(Type.Number()),
+      }),
+    ),
+  },
+  { additionalProperties: false },
+);
+
+export const AgentsScenarioGetParamsSchema = Type.Object(
+  { agentId: NonEmptyString, name: NonEmptyString },
+  { additionalProperties: false },
+);
+
+export const AgentsScenarioGetResultSchema = Type.Object(
+  {
+    agentId: NonEmptyString,
+    name: NonEmptyString,
+    content: Type.String(),
+  },
+  { additionalProperties: false },
+);
+
+export const AgentsScenarioSetParamsSchema = Type.Object(
+  { agentId: NonEmptyString, name: NonEmptyString, content: Type.String() },
+  { additionalProperties: false },
+);
+
+export const AgentsScenarioSetResultSchema = Type.Object(
+  { ok: Type.Literal(true), agentId: NonEmptyString, name: NonEmptyString },
+  { additionalProperties: false },
+);
+
+export const AgentsScenarioDeleteParamsSchema = Type.Object(
+  { agentId: NonEmptyString, name: NonEmptyString },
+  { additionalProperties: false },
+);
+
+export const AgentsScenarioDeleteResultSchema = Type.Object(
+  { ok: Type.Literal(true), agentId: NonEmptyString, name: NonEmptyString },
+  { additionalProperties: false },
+);
+
 export const ModelsListParamsSchema = Type.Object(
   {
     view: Type.Optional(

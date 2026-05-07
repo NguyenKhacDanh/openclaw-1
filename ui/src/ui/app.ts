@@ -14,6 +14,7 @@ import {
   handleWhatsAppStart as handleWhatsAppStartInternal,
   handleWhatsAppWait as handleWhatsAppWaitInternal,
 } from "./app-channels.ts";
+import { loadChannels } from "./controllers/channels.ts";
 import {
   handleAbortChat as handleAbortChatInternal,
   handleChatDraftChange as handleChatDraftChangeInternal,
@@ -73,6 +74,7 @@ import {
   refreshVisibleToolsEffectiveForCurrentSession as refreshVisibleToolsEffectiveForCurrentSessionInternal,
 } from "./controllers/agents.ts";
 import { loadAssistantIdentity as loadAssistantIdentityInternal } from "./controllers/assistant-identity.ts";
+import { updateConfigFormValue, saveConfig } from "./controllers/config.ts";
 import type { DevicePairingList } from "./controllers/devices.ts";
 import type {
   DreamingStatus,
@@ -341,6 +343,30 @@ export class OpenClawApp extends LitElement {
   @state() whatsappLoginQrDataUrl: string | null = null;
   @state() whatsappLoginConnected: boolean | null = null;
   @state() whatsappBusy = false;
+  @state() zaloMessage: string | null = null;
+  @state() zaloQrDataUrl: string | null = null;
+  @state() zaloConnected: boolean | null = null;
+  @state() zaloBusy = false;
+  @state() facebookPostDraft: string | null = null;
+  @state() facebookBusy = false;
+  @state() qrActiveTab: "zalo" | "zalo-oa" | "whatsapp" | "telegram" = "zalo";
+  @state() apiKeyEntries: import("./views/config-apikeys.js").ApiKeyEntry[] = [];
+  @state() apiKeyLoading = false;
+  @state() apiKeySaving = false;
+  @state() apiKeyError: string | null = null;
+  @state() apiKeyAddingKey = false;
+  @state() newApiKeyProvider = "";
+  @state() newApiKeyAlias = "";
+  @state() newApiKeyValue = "";
+  @state() newApiKeyModels: string[] = [];
+  @state() apiKeyEditingId: string | null = null;
+  @state() apiKeyEditAlias = "";
+  @state() apiKeyEditValue = "";
+  @state() apiKeyEditModels: string[] = [];
+  @state() zaloTokenInput = "";
+  @state() zaloOaTokenInput = "";
+  @state() zaloOaIdInput = "";
+  @state() telegramTokenInput = "";
   @state() nostrProfileFormState: NostrProfileFormState | null = null;
   @state() nostrProfileAccountId: string | null = null;
 
@@ -1017,6 +1043,310 @@ export class OpenClawApp extends LitElement {
     await handleWhatsAppLogoutInternal(this);
   }
 
+  handleQrTabChange(tab: "zalo" | "zalo-oa" | "whatsapp" | "telegram") {
+    this.qrActiveTab = tab;
+  }
+
+  handleZaloTokenInput(v: string) { this.zaloTokenInput = v; }
+  handleZaloOaTokenInput(v: string) { this.zaloOaTokenInput = v; }
+  handleZaloOaIdInput(v: string) { this.zaloOaIdInput = v; }
+
+  async handleZaloOaSave() {
+    if (!this.zaloOaTokenInput.trim()) return;
+    updateConfigFormValue(this, ["channels", "zalo", "oaAccessToken"], this.zaloOaTokenInput.trim());
+    if (this.zaloOaIdInput.trim()) {
+      updateConfigFormValue(this, ["channels", "zalo", "oaId"], this.zaloOaIdInput.trim());
+    }
+    await saveConfig(this);
+    this.zaloMessage = "Đã lưu cấu hình Zalo OA.";
+  }
+
+  handleTelegramTokenInput(v: string) { this.telegramTokenInput = v; }
+
+  async handleTelegramTokenSave() {
+    if (!this.telegramTokenInput.trim()) return;
+    updateConfigFormValue(this, ["channels", "telegram", "botToken"], this.telegramTokenInput.trim());
+    await saveConfig(this);
+    this.telegramTokenInput = "";
+  }
+
+  async handleZaloStart(force: boolean) {
+    if (this.zaloBusy) return;
+    this.zaloBusy = true;
+    this.zaloQrDataUrl = null;
+    this.zaloMessage = "Đang khởi động đăng nhập QR Zalo...";
+    try {
+      const res = await this.client?.request<{
+        qrDataUrl?: string;
+        message?: string;
+        connected?: boolean;
+      }>("qr.zalouser.start", { force });
+      if (res?.connected) {
+        this.zaloConnected = true;
+        this.zaloMessage = res.message ?? "Đã kết nối.";
+        this.zaloQrDataUrl = null;
+        try {
+          await loadChannels(this as unknown as Parameters<typeof loadChannels>[0], true);
+        } catch { /* ignore */ }
+      } else if (res?.qrDataUrl) {
+        this.zaloQrDataUrl = res.qrDataUrl;
+        this.zaloMessage =
+          res.message ?? "Mở Zalo trên điện thoại → Quét mã QR này để đăng nhập.";
+        this._startZalouserWaitPoll();
+      } else {
+        this.zaloMessage = res?.message ?? "Không nhận được QR. Thử lại sau.";
+      }
+    } catch (err) {
+      this.zaloMessage = `Lỗi: ${String(err)}`;
+      this.zaloQrDataUrl = null;
+    } finally {
+      this.zaloBusy = false;
+    }
+  }
+
+  private _zalouserWaitPollId: ReturnType<typeof setTimeout> | null = null;
+
+  private _startZalouserWaitPoll() {
+    if (this._zalouserWaitPollId) return;
+    const poll = async () => {
+      if (!this.zaloQrDataUrl) return;
+      try {
+        const res = await this.client?.request<{
+          connected?: boolean;
+          message?: string;
+          qrDataUrl?: string;
+        }>("qr.zalouser.wait", {
+          timeoutMs: 30000,
+          currentQrDataUrl: this.zaloQrDataUrl,
+        });
+        if (res?.connected) {
+          this.zaloConnected = true;
+          this.zaloQrDataUrl = null;
+          this.zaloMessage = res.message ?? "Đăng nhập thành công!";
+          this._zalouserWaitPollId = null;
+          try {
+            await loadChannels(this as unknown as Parameters<typeof loadChannels>[0], true);
+          } catch { /* ignore */ }
+        } else if (res?.qrDataUrl) {
+          this.zaloQrDataUrl = res.qrDataUrl;
+          this._zalouserWaitPollId = setTimeout(poll, 500);
+        } else {
+          this._zalouserWaitPollId = setTimeout(poll, 500);
+        }
+      } catch {
+        this._zalouserWaitPollId = null;
+      }
+    };
+    this._zalouserWaitPollId = setTimeout(poll, 500);
+  }
+
+  async handleZaloTokenSave() {
+    // Kept for backwards compat with cookie-based zalo (old channel)
+    const token = this.zaloTokenInput.trim();
+    if (!token || this.zaloBusy) return;
+    this.zaloBusy = true;
+    try {
+      updateConfigFormValue(this, ["channels", "zalo", "botToken"], token);
+      updateConfigFormValue(this, ["channels", "zalo", "enabled"], true);
+      updateConfigFormValue(this, ["channels", "zalo", "botMode"], "personal");
+      await saveConfig(this);
+      this.zaloMessage = "Đã lưu token. Kênh sẽ kết nối tự động.";
+      this.zaloTokenInput = "";
+      this.zaloQrDataUrl = null;
+      try {
+        await loadChannels(this as unknown as Parameters<typeof loadChannels>[0], true);
+      } catch { /* ignore */ }
+    } catch (err) {
+      this.zaloMessage = `Lỗi khi lưu token: ${String(err)}`;
+    } finally {
+      this.zaloBusy = false;
+    }
+  }
+
+  handleZaloWait() {
+    // no-op — polling is automatic after QR display
+  }
+
+  async handleZaloLogout() {
+    if (!this.client || this.zaloBusy) return;
+    this.zaloBusy = true;
+    if (this._zalouserWaitPollId) {
+      clearTimeout(this._zalouserWaitPollId);
+      this._zalouserWaitPollId = null;
+    }
+    try {
+      await this.client.request("qr.zalouser.logout", {});
+      this.zaloMessage = "Đã đăng xuất Zalo.";
+      this.zaloQrDataUrl = null;
+      this.zaloConnected = null;
+    } catch (err) {
+      this.zaloMessage = String(err);
+    } finally {
+      this.zaloBusy = false;
+      try {
+        await loadChannels(this as unknown as Parameters<typeof loadChannels>[0], true);
+      } catch { /* ignore */ }
+    }
+  }
+
+  handleZaloSetMode(_mode: "personal" | "oa") {
+    // mode change handled via config patch
+  }
+
+  handleFacebookPostDraftChange(draft: string | null) {
+    this.facebookPostDraft = draft;
+  }
+
+  async handleFacebookPost() {
+    this.facebookBusy = true;
+    this.facebookBusy = false;
+  }
+
+  async handleFacebookSchedulePost() {
+    this.facebookBusy = true;
+    this.facebookBusy = false;
+  }
+
+  async handleFacebookRefreshToken() {
+    this.facebookBusy = true;
+    this.facebookBusy = false;
+  }
+
+  async handleApiKeyLoad() {
+    if (!this.client) return;
+    this.apiKeyLoading = true;
+    this.apiKeyError = null;
+    try {
+      const res = await this.client.request<{ keys: import("./views/config-apikeys.js").ApiKeyEntry[] }>("apikeys.list", {});
+      this.apiKeyEntries = res?.keys ?? [];
+    } catch (err) {
+      this.apiKeyError = String(err);
+    } finally {
+      this.apiKeyLoading = false;
+    }
+  }
+
+  async handleApiKeyDelete(id: string) {
+    if (!this.client) return;
+    this.apiKeySaving = true;
+    this.apiKeyError = null;
+    try {
+      const res = await this.client.request<{ keys: import("./views/config-apikeys.js").ApiKeyEntry[] }>("apikeys.delete", { id });
+      this.apiKeyEntries = res?.keys ?? this.apiKeyEntries.filter((k) => k.id !== id);
+    } catch (err) {
+      this.apiKeyError = String(err);
+    } finally {
+      this.apiKeySaving = false;
+    }
+  }
+
+  async handleApiKeyDragReorder(orderedIds: string[]) {
+    if (!this.client) return;
+    // Optimistic update
+    const sorted = [...this.apiKeyEntries].sort((a, b) => a.priority - b.priority);
+    const reordered = orderedIds.map((id, i) => {
+      const entry = sorted.find((k) => k.id === id) ?? this.apiKeyEntries.find((k) => k.id === id)!;
+      return { ...entry, priority: i + 1 };
+    });
+    this.apiKeyEntries = reordered;
+    this.apiKeySaving = true;
+    this.apiKeyError = null;
+    try {
+      const res = await this.client.request<{ keys: import("./views/config-apikeys.js").ApiKeyEntry[] }>("apikeys.reorder", { orderedIds });
+      this.apiKeyEntries = res?.keys ?? this.apiKeyEntries;
+    } catch (err) {
+      this.apiKeyError = String(err);
+    } finally {
+      this.apiKeySaving = false;
+    }
+  }
+
+  handleApiKeyStartAdd() {
+    this.apiKeyAddingKey = true;
+    this.newApiKeyProvider = "";
+    this.newApiKeyAlias = "";
+    this.newApiKeyValue = "";
+    this.newApiKeyModels = [];
+  }
+
+  handleApiKeyCancelAdd() {
+    this.apiKeyAddingKey = false;
+    this.newApiKeyProvider = "";
+    this.newApiKeyAlias = "";
+    this.newApiKeyValue = "";
+    this.newApiKeyModels = [];
+  }
+
+  async handleApiKeyConfirmAdd() {
+    if (!this.client || !this.newApiKeyProvider || !this.newApiKeyAlias || !this.newApiKeyValue) return;
+    this.apiKeySaving = true;
+    this.apiKeyError = null;
+    try {
+      const res = await this.client.request<{ keys: import("./views/config-apikeys.js").ApiKeyEntry[] }>("apikeys.add", {
+        provider: this.newApiKeyProvider,
+        alias: this.newApiKeyAlias,
+        keyValue: this.newApiKeyValue,
+        models: this.newApiKeyModels,
+      });
+      this.apiKeyEntries = res?.keys ?? this.apiKeyEntries;
+      this.apiKeyAddingKey = false;
+      this.newApiKeyProvider = "";
+      this.newApiKeyAlias = "";
+      this.newApiKeyValue = "";
+      this.newApiKeyModels = [];
+    } catch (err) {
+      this.apiKeyError = String(err);
+    } finally {
+      this.apiKeySaving = false;
+    }
+  }
+
+  handleApiKeyProviderChange(provider: string) { this.newApiKeyProvider = provider; }
+  handleApiKeyAliasChange(alias: string) { this.newApiKeyAlias = alias; }
+  handleApiKeyValueChange(value: string) { this.newApiKeyValue = value; }
+  handleApiKeyModelsChange(models: string[]) { this.newApiKeyModels = models; }
+
+  handleApiKeyStartEdit(key: import("./views/config-apikeys.js").ApiKeyEntry) {
+    this.apiKeyEditingId = key.id;
+    this.apiKeyEditAlias = key.alias;
+    this.apiKeyEditValue = "";
+    this.apiKeyEditModels = key.models ?? [];
+  }
+
+  handleApiKeyCancelEdit() {
+    this.apiKeyEditingId = null;
+    this.apiKeyEditAlias = "";
+    this.apiKeyEditValue = "";
+    this.apiKeyEditModels = [];
+  }
+
+  async handleApiKeyConfirmEdit() {
+    if (!this.client || !this.apiKeyEditingId) return;
+    this.apiKeySaving = true;
+    this.apiKeyError = null;
+    try {
+      const res = await this.client.request<{ keys: import("./views/config-apikeys.js").ApiKeyEntry[] }>("apikeys.update", {
+        id: this.apiKeyEditingId,
+        alias: this.apiKeyEditAlias || undefined,
+        keyValue: this.apiKeyEditValue || undefined,
+        models: this.apiKeyEditModels,
+      });
+      this.apiKeyEntries = res?.keys ?? this.apiKeyEntries;
+      this.apiKeyEditingId = null;
+      this.apiKeyEditAlias = "";
+      this.apiKeyEditValue = "";
+      this.apiKeyEditModels = [];
+    } catch (err) {
+      this.apiKeyError = String(err);
+    } finally {
+      this.apiKeySaving = false;
+    }
+  }
+
+  handleApiKeyEditAliasChange(alias: string) { this.apiKeyEditAlias = alias; }
+  handleApiKeyEditValueChange(value: string) { this.apiKeyEditValue = value; }
+  handleApiKeyEditModelsChange(models: string[]) { this.apiKeyEditModels = models; }
+
   async handleChannelConfigSave() {
     await handleChannelConfigSaveInternal(this);
   }
@@ -1212,6 +1542,20 @@ export class OpenClawApp extends LitElement {
       await sendTestWebPush(this.client);
     } catch (err) {
       this.lastError = String(err);
+    }
+  }
+
+  @state() gatewayRestarting = false;
+
+  async handleGatewayRestart() {
+    if (!this.client || this.gatewayRestarting) return;
+    this.gatewayRestarting = true;
+    try {
+      await this.client.request("gateway.restart.request", { reason: "manual UI restart" });
+    } catch (err) {
+      this.lastError = String(err);
+    } finally {
+      this.gatewayRestarting = false;
     }
   }
 
