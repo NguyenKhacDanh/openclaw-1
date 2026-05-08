@@ -42,8 +42,10 @@ function readConfigNested(form: Record<string, unknown> | null, keys: string[]):
 }
 
 function renderZaloPersonalTab(props: ChannelsProps & QrExtProps, zalo: ZaloStatus | null | undefined) {
-  // props.zaloConnected is set immediately after QR confirm; zalo?.connected comes from channels snapshot (may lag)
-  const connected = props.zaloConnected ?? zalo?.connected ?? null;
+  // props.zaloConnected: set immediately after QR confirm
+  // zalo?.connected: live channel status (may lag or be false during reconnect)
+  // zalo?.configured: credentials exist on disk (checkZcaAuthenticated) — true even when channel is stopped
+  const connected = props.zaloConnected ?? zalo?.connected ?? (zalo?.configured ? true : null);
 
   return html`
     <div class="qrscan-status-row">

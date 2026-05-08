@@ -17,6 +17,7 @@ import {
   scheduleControlUiTabVisibleTiming,
 } from "./control-ui-performance.ts";
 import { loadAgentFiles, type AgentFilesState } from "./controllers/agent-files.ts";
+import { loadAgentScenarios, type AgentScenariosState } from "./controllers/agent-scenarios.ts";
 import {
   loadAgentIdentities,
   loadAgentIdentity,
@@ -96,7 +97,7 @@ type SettingsHost = {
   basePath: string;
   agentsList?: AgentsListResult | null;
   agentsSelectedId?: string | null;
-  agentsPanel?: "overview" | "files" | "tools" | "skills" | "channels" | "cron";
+  agentsPanel?: "overview" | "files" | "scenario" | "tools" | "skills" | "channels" | "cron";
   pendingGatewayUrl?: string | null;
   systemThemeCleanup?: (() => void) | null;
   pendingGatewayToken?: string | null;
@@ -329,6 +330,9 @@ async function refreshAgentsTab(host: SettingsHost, app: SettingsAppHost) {
   switch (host.agentsPanel) {
     case "files":
       void loadAgentFiles(app, agentId);
+      return;
+    case "scenario":
+      void loadAgentScenarios(app as unknown as AgentScenariosState, agentId);
       return;
     case "skills":
       void loadAgentSkills(app, agentId);

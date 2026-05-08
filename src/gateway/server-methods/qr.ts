@@ -13,15 +13,31 @@ export const qrHandlers: GatewayRequestHandlers = {
       respond(false, undefined, errorShape(ErrorCodes.UNAVAILABLE, "zalouser plugin not available"));
       return;
     }
+    const force = Boolean((params as { force?: boolean }).force);
     try {
+      if (!force) {
+        // Quick status check without stopping the running channel
+        const quickResult = await plugin.gateway.loginWithQrStart({
+          force: false,
+          timeoutMs: 35000,
+          verbose: false,
+          accountId: undefined,
+        });
+        if (quickResult.connected) {
+          // Already linked — ensure channel is running without disrupting it
+          await context.startChannel("zalouser" as import("../../channels/plugins/types.public.js").ChannelId);
+          respond(true, quickResult);
+          return;
+        }
+      }
+      // Not connected or force=true: stop channel then do full QR flow
       await context.stopChannel("zalouser" as import("../../channels/plugins/types.public.js").ChannelId);
       const result = await plugin.gateway.loginWithQrStart({
-        force: Boolean((params as { force?: boolean }).force),
+        force,
         timeoutMs: 35000,
         verbose: false,
         accountId: undefined,
       });
-      // If already linked, restart the channel so it can send messages
       if (result.connected) {
         await context.startChannel("zalouser" as import("../../channels/plugins/types.public.js").ChannelId);
       }

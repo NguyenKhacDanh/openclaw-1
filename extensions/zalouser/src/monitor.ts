@@ -779,22 +779,25 @@ async function deliverZalouserReply(params: {
     payload,
     text: reply.text,
     sendText: async (chunk) => {
-      try {
-        await sendMessageZalouser(chatId, chunk, {
-          profile,
-          isGroup,
-          textMode: "markdown",
-          textChunkMode: chunkMode,
-          textChunkLimit,
-        });
+      const result = await sendMessageZalouser(chatId, chunk, {
+        profile,
+        isGroup,
+        textMode: "markdown",
+        textChunkMode: chunkMode,
+        textChunkLimit,
+      });
+      if (result.ok) {
         visibleReplySent = true;
-      } catch (err) {
-        runtime.error(`Zalouser message send failed: ${String(err)}`);
+      } else {
+        runtime.error(
+          `[${accountId ?? profile}] Zalouser ${isGroup ? "group" : "DM"} send failed ` +
+            `(chatId=${chatId}): ${result.error ?? "unknown error"}`,
+        );
       }
     },
     sendMedia: async ({ mediaUrl, caption }) => {
       logVerbose(core, runtime, `Sending media to ${chatId}`);
-      await sendMessageZalouser(chatId, caption ?? "", {
+      const result = await sendMessageZalouser(chatId, caption ?? "", {
         profile,
         mediaUrl,
         isGroup,
@@ -802,7 +805,14 @@ async function deliverZalouserReply(params: {
         textChunkMode: chunkMode,
         textChunkLimit,
       });
-      visibleReplySent = true;
+      if (result.ok) {
+        visibleReplySent = true;
+      } else {
+        runtime.error(
+          `[${accountId ?? profile}] Zalouser ${isGroup ? "group" : "DM"} media send failed ` +
+            `(chatId=${chatId}): ${(result as { error?: string }).error ?? "unknown error"}`,
+        );
+      }
     },
     onMediaError: (error) => {
       runtime.error(

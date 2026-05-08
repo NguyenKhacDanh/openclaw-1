@@ -26,6 +26,13 @@ import {
   roundedControlUiDurationMs,
 } from "./control-ui-performance.ts";
 import { loadAgentFileContent, loadAgentFiles, saveAgentFile } from "./controllers/agent-files.ts";
+import {
+  deleteAgentScenario,
+  importAgentScenario,
+  loadAgentScenarioContent,
+  loadAgentScenarios,
+  saveAgentScenario,
+} from "./controllers/agent-scenarios.ts";
 import { loadAgentIdentities, loadAgentIdentity } from "./controllers/agent-identity.ts";
 import { loadAgentSkills } from "./controllers/agent-skills.ts";
 import {
@@ -1340,6 +1347,11 @@ export function renderApp(state: AppViewState) {
       case "files":
         void loadAgentFiles(state, agentId);
         return;
+      case "scenario":
+        if (state.agentScenarioListAgentId !== agentId) {
+          void loadAgentScenarios(state, agentId);
+        }
+        return;
       case "skills":
         void loadAgentSkills(state, agentId);
         return;
@@ -1374,6 +1386,13 @@ export function renderApp(state: AppViewState) {
   };
   const resetAgentSelectionPanelState = () => {
     resetAgentFilesState(true);
+    state.agentScenarioList = null;
+    state.agentScenarioListAgentId = null;
+    state.agentScenarioError = null;
+    state.agentScenarioActive = null;
+    state.agentScenarioContents = {};
+    state.agentScenarioDrafts = {};
+    state.agentScenarioLoading = false;
     state.agentSkillsReport = null;
     state.agentSkillsError = null;
     state.agentSkillsAgentId = null;
@@ -2073,6 +2092,15 @@ export function renderApp(state: AppViewState) {
                   drafts: state.agentFileDrafts,
                   saving: state.agentFileSaving,
                 },
+                agentScenario: {
+                  list: state.agentScenarioList,
+                  loading: state.agentScenarioLoading,
+                  error: state.agentScenarioError,
+                  active: state.agentScenarioActive,
+                  contents: state.agentScenarioContents,
+                  drafts: state.agentScenarioDrafts,
+                  saving: state.agentScenarioSaving,
+                },
                 agentIdentityLoading: state.agentIdentityLoading,
                 agentIdentityError: state.agentIdentityError,
                 agentIdentityById: state.agentIdentityById,
@@ -2123,6 +2151,9 @@ export function renderApp(state: AppViewState) {
                   ) {
                     resetAgentFilesState();
                     void loadAgentFiles(state, resolvedAgentId);
+                  }
+                  if (panel === "scenario" && resolvedAgentId && state.agentScenarioListAgentId !== resolvedAgentId) {
+                    void loadAgentScenarios(state, resolvedAgentId);
                   }
                   if (panel === "skills" && resolvedAgentId) {
                     void loadAgentSkills(state, resolvedAgentId);
@@ -2176,6 +2207,35 @@ export function renderApp(state: AppViewState) {
                   const content =
                     state.agentFileDrafts[name] ?? state.agentFileContents[name] ?? "";
                   void saveAgentFile(state, resolvedAgentId, name, content);
+                },
+                onScenarioLoad: (agentId) => {
+                  void loadAgentScenarios(state, agentId);
+                },
+                onScenarioSelect: (name) => {
+                  state.agentScenarioActive = name;
+                  if (resolvedAgentId) {
+                    void loadAgentScenarioContent(state, resolvedAgentId, name);
+                  }
+                },
+                onScenarioDraftChange: (name, content) => {
+                  state.agentScenarioDrafts = { ...state.agentScenarioDrafts, [name]: content };
+                },
+                onScenarioSave: (name) => {
+                  if (!resolvedAgentId) {
+                    return;
+                  }
+                  const content =
+                    state.agentScenarioDrafts[name] ?? state.agentScenarioContents[name] ?? "";
+                  void saveAgentScenario(state, resolvedAgentId, name, content);
+                },
+                onScenarioDelete: (agentId, name) => {
+                  void deleteAgentScenario(state, agentId, name);
+                },
+                onScenarioImport: (agentId, name, content) => {
+                  void importAgentScenario(state, agentId, name, content);
+                },
+                onScenarioCreate: (agentId, name, content) => {
+                  void importAgentScenario(state, agentId, name, content);
                 },
                 onToolsProfileChange: (agentId, profile, clearAllow) => {
                   const basePath = resolveAgentToolsPath(agentId, Boolean(profile || clearAllow));

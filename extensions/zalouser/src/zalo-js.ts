@@ -1760,10 +1760,16 @@ export async function startZaloListener(params: {
     activeListeners.delete(profile);
   };
 
+  // Track whether the listener received at least one message since it started.
+  // Used to distinguish session-expiry failures (no messages ever received) from
+  // transient network drops (closed/errored after receiving messages).
+  let receivedAnyMessages = false;
+
   const onMessage = (incoming: Message) => {
     if (incoming.isSelf) {
       return;
     }
+    receivedAnyMessages = true;
     const normalized = toInboundMessage(incoming, ownUserId);
     if (!normalized) {
       return;
@@ -1771,22 +1777,31 @@ export async function startZaloListener(params: {
     params.onMessage(normalized);
   };
 
-  const failListener = (error: Error) => {
+  const failListener = (error: Error, shouldInvalidateApi = true) => {
     if (stopped || params.abortSignal.aborted) {
       return;
     }
     cleanup();
-    invalidateApi(profile);
+    if (shouldInvalidateApi) {
+      invalidateApi(profile);
+    }
     params.onError(error);
   };
 
   const onError = (error: unknown) => {
     const wrapped = error instanceof Error ? error : new Error(String(error));
-    failListener(wrapped);
+    // Only invalidate the cached API if we never received any messages — that suggests
+    // the session has expired. If we did receive messages, this is a transient network
+    // drop and the cached API is still valid for reconnect.
+    failListener(wrapped, !receivedAnyMessages);
   };
 
   const onClosed = (code: number, reason: string) => {
-    failListener(new Error(`Zalo listener closed (${code}): ${reason || "no reason"}`));
+    // Same heuristic: close without messages = auth failure, close after messages = network drop.
+    failListener(
+      new Error(`Zalo listener closed (${code}): ${reason || "no reason"}`),
+      !receivedAnyMessages,
+    );
   };
 
   api.listener.on("message", onMessage);
@@ -1810,10 +1825,17 @@ export async function startZaloListener(params: {
     if (gapMs <= LISTENER_WATCHDOG_MAX_GAP_MS) {
       return;
     }
+    // Don't invalidate the API on watchdog gaps — the gap is typically caused by
+    // event-loop blocking (ZCA login), not by an expired Zalo session. Keeping
+    // the cached API means the next startZaloListener call skips zalo.login()
+    // entirely, avoiding the 10-100s block that would trigger another watchdog.
+    // If the session IS actually expired, api.listener.start() will fail and
+    // onError will invalidate the API at that point.
     failListener(
       new Error(
         `Zalo listener watchdog gap detected (${Math.round(gapMs / 1000)}s): forcing reconnect`,
       ),
+      false,
     );
   }, LISTENER_WATCHDOG_INTERVAL_MS);
   watchdogTimer.unref?.();

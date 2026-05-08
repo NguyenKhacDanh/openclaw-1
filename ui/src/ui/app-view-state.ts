@@ -263,7 +263,7 @@ export type AppViewState = {
   toolsEffectiveResultKey: string | null;
   toolsEffectiveError: string | null;
   toolsEffectiveResult: import("./types.js").ToolsEffectiveResult | null;
-  agentsPanel: "overview" | "files" | "tools" | "skills" | "channels" | "cron";
+  agentsPanel: "overview" | "files" | "scenario" | "tools" | "skills" | "channels" | "cron";
   agentFilesLoading: boolean;
   agentFilesError: string | null;
   agentFilesList: AgentsFilesListResult | null;
@@ -271,6 +271,14 @@ export type AppViewState = {
   agentFileDrafts: Record<string, string>;
   agentFileActive: string | null;
   agentFileSaving: boolean;
+  agentScenarioLoading: boolean;
+  agentScenarioError: string | null;
+  agentScenarioList: Array<{ name: string; size?: number; updatedAtMs?: number }> | null;
+  agentScenarioListAgentId: string | null;
+  agentScenarioContents: Record<string, string>;
+  agentScenarioDrafts: Record<string, string>;
+  agentScenarioActive: string | null;
+  agentScenarioSaving: boolean;
   agentIdentityLoading: boolean;
   agentIdentityError: string | null;
   agentIdentityById: Record<string, AgentIdentityResult>;
