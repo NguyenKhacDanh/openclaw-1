@@ -518,6 +518,17 @@ async function runGatewayCommand(opts: GatewayRunOpts) {
   void maybeLogPendingControlUiBuild(cfg).catch((err) => {
     gatewayLog.warn(`Control UI asset check failed: ${String(err)}`);
   });
+
+  // Inject UI-declared API keys from priority store into env for extension plugins (e.g. DeepSeek)
+  {
+    const { injectStoreKeysToEnv } = await import("../../gateway/inject-store-keys.js");
+    injectStoreKeysToEnv({
+      stateDir: resolveStateDir(process.env),
+      plugins: startupConfigSnapshotRead?.pluginMetadataSnapshot?.plugins ?? [],
+      log: (msg) => gatewayLog.info(msg),
+    });
+  }
+
   const portOverride = parsePort(opts.port);
   if (opts.port !== undefined && portOverride === null) {
     defaultRuntime.error("Invalid port");

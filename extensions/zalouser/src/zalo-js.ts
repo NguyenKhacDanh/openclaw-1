@@ -1210,15 +1210,19 @@ export async function sendZaloTextMessage(
           const payloadText = (text || options.caption || "").slice(0, 2000);
           const textStyles = clampTextStyles(payloadText, options.textStyles);
 
-          if (media.kind === "audio") {
+            if (media.kind === "audio") {
             let textMessageId: string | undefined;
             if (payloadText) {
-              const textResponse = await api.sendMessage(
-                textStyles ? { msg: payloadText, styles: textStyles } : payloadText,
-                trimmedThreadId,
-                type,
-              );
-              textMessageId = extractSendMessageId(textResponse);
+              const textPayload = textStyles ? { msg: payloadText, styles: textStyles } : payloadText;
+              try {
+                console.debug("[ZALO SEND] sending text (audio pre) ->", { threadId: trimmedThreadId, payload: textPayload });
+                const textResponse = await api.sendMessage(textPayload, trimmedThreadId, type);
+                console.debug("[ZALO SEND] response (audio pre) ->", textResponse);
+                textMessageId = extractSendMessageId(textResponse);
+              } catch (err) {
+                console.error("[ZALO SEND] error sending text (audio pre):", err);
+                throw err;
+              }
             }
 
             const attachmentFileName = fileName.includes(".") ? fileName : `${fileName}.bin`;
@@ -1253,23 +1257,88 @@ export async function sendZaloTextMessage(
             };
           }
 
-          const response = await api.sendMessage(
-            {
-              msg: payloadText,
-              ...(textStyles ? { styles: textStyles } : {}),
-              attachments: [
-                {
-                  data: media.buffer,
-                  filename: fileName.includes(".") ? fileName : `${fileName}.bin`,
-                  metadata: {
-                    totalSize: media.buffer.length,
-                  },
+          const mediaPayload = {
+            msg: payloadText,
+            ...(textStyles ? { styles: textStyles } : {}),
+            attachments: [
+              {
+                data: media.buffer,
+                filename: fileName.includes(".") ? fileName : `${fileName}.bin`,
+                metadata: {
+                  totalSize: media.buffer.length,
                 },
-              ],
-            },
-            trimmedThreadId,
-            type,
-          );
+              },
+            ],
+          };
+          try {
+            console.debug("[ZALO SEND] sending media ->", { threadId: trimmedThreadId, payload: mediaPayload });
+            const response = await api.sendMessage(mediaPayload, trimmedThreadId, type);
+            console.debug("[ZALO SEND] response (media) ->", response);
+            const messageId = extractSendMessageId(response);
+            return {
+              ok: true,
+              messageId,
+              receipt: createZalouserSendReceipt({
+                messageId,
+                threadId: trimmedThreadId,
+                kind: "media",
+              }),
+            };
+          } catch (err) {
+            console.error("[ZALO SEND] error sending media:", err);
+            throw err;
+          }
+        }
+
+        const payloadText = text.slice(0, 2000);
+        const textStyles = clampTextStyles(payloadText, options.textStyles);
+
+        // Build optional mentions metadata for group sends.
+        // Zalo expects an array of mention entries on the message payload (inbound `data.mentions` shape),
+        // so convert @<digits> tokens into numeric ids where possible and attach `mentions`.
+        let payload: string | Record<string, unknown> = textStyles
+          ? { msg: payloadText, styles: textStyles }
+          : payloadText;
+        if (options.isGroup) {
+          try {
+            // Find simple @<digits> tokens outside code fences.
+            const mentionRegex = /@(\+?\d+)/g;
+            const candidateIds = new Set<string>();
+            for (const m of payloadText.matchAll(mentionRegex)) {
+              const digits = (m[1] || "").replace(/\D/g, "");
+              if (digits) {
+                candidateIds.add(digits);
+              }
+            }
+            if (candidateIds.size > 0) {
+              // Resolve group members to their numeric user ids and build mentions array.
+              // Resolve actual group member ids and match digits to user ids.
+              const groupMembers = await listZaloGroupMembers(options.profile, trimmedThreadId).catch(() => [] as unknown[]);
+              if (Array.isArray(groupMembers) && groupMembers.length > 0) {
+                const mentions: Array<Record<string, unknown>> = [];
+                for (const member of groupMembers) {
+                  const memberId = toNumberId((member as { userId?: unknown })?.userId);
+                  if (memberId && candidateIds.has(memberId)) {
+                    mentions.push({ uid: memberId });
+                  }
+                }
+                if (mentions.length > 0) {
+                  if (typeof payload === "string") {
+                    payload = { msg: payload };
+                  }
+                  (payload as Record<string, unknown>).mentions = mentions;
+                }
+              }
+            }
+          } catch {
+            // Non-fatal: if mention resolution fails, just send the plain text.
+          }
+        }
+
+        try {
+          console.debug("[ZALO SEND] sending text ->", { threadId: trimmedThreadId, payload });
+          const response = await api.sendMessage(payload, trimmedThreadId, type);
+          console.debug("[ZALO SEND] response ->", response);
           const messageId = extractSendMessageId(response);
           return {
             ok: true,
@@ -1277,28 +1346,17 @@ export async function sendZaloTextMessage(
             receipt: createZalouserSendReceipt({
               messageId,
               threadId: trimmedThreadId,
-              kind: "media",
+              kind: "text",
             }),
           };
+        } catch (err) {
+          console.error("[ZALO SEND] error sending text:", err);
+          return {
+            ok: false,
+            error: toErrorMessage(err),
+            receipt: createZalouserSendReceipt({ threadId: trimmedThreadId, kind: "unknown" }),
+          };
         }
-
-        const payloadText = text.slice(0, 2000);
-        const textStyles = clampTextStyles(payloadText, options.textStyles);
-        const response = await api.sendMessage(
-          textStyles ? { msg: payloadText, styles: textStyles } : payloadText,
-          trimmedThreadId,
-          type,
-        );
-        const messageId = extractSendMessageId(response);
-        return {
-          ok: true,
-          messageId,
-          receipt: createZalouserSendReceipt({
-            messageId,
-            threadId: trimmedThreadId,
-            kind: "text",
-          }),
-        };
       } catch (error) {
         return {
           ok: false,

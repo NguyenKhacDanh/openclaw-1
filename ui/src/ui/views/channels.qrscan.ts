@@ -63,6 +63,7 @@ function renderZaloPersonalTab(props: ChannelsProps & QrExtProps, zalo: ZaloStat
       : nothing}
 
     ${renderMentionToggle(props, ["channels", "zalouser", "groups", "*", "requireMention"])}
+    ${renderVisibleRepliesToggle(props, ["messages", "groupChat", "visibleReplies"])}
 
     ${props.zaloQrDataUrl
       ? html`<div style="margin-top:8px;font-size:13px;" class="muted">
@@ -131,6 +132,33 @@ function renderMentionToggle(
       : html`<div class="callout info" style="margin-top:8px;font-size:12px;">
           ✅ <strong>Open mode:</strong> Bot trả lời tất cả tin nhắn trong nhóm, không cần @tag.
         </div>`}
+  `;
+}
+
+function renderVisibleRepliesToggle(props: ChannelsProps, configPath: string[]) {
+  const current = readConfigNested(props.configForm, configPath) as string | undefined;
+  const isAutomatic = current !== "message_tool";
+  return html`
+    <div style="margin-top:10px;display:flex;align-items:center;gap:10px;">
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;">
+        <input
+          type="checkbox"
+          .checked=${isAutomatic}
+          @change=${(e: Event) => {
+            const checked = (e.target as HTMLInputElement).checked;
+            props.onConfigPatch(configPath, checked ? "automatic" : "message_tool");
+            props.onConfigSave();
+          }}
+          style="width:16px;height:16px;cursor:pointer;"
+        />
+        <span>Trả lời hiển thị trực tiếp trong nhóm</span>
+      </label>
+    </div>
+    ${!isAutomatic
+      ? html`<div class="callout info" style="margin-top:8px;font-size:12px;">
+          ⚠️ <strong>message_tool mode:</strong> Bot cần được cấu hình message tool để reply — nếu chưa cấu hình, bot sẽ <strong>không reply</strong> vào nhóm.
+        </div>`
+      : nothing}
   `;
 }
 

@@ -65,6 +65,7 @@ const KNOWN_PROVIDERS = [
   { id: "zai", label: "ZAI" },
   { id: "lkeap", label: "LKEAP" },
   { id: "minimax", label: "MiniMax" },
+  { id: "deepseek", label: "DeepSeek" },
   { id: "synthetic", label: "Synthetic" },
 ];
 
