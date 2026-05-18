@@ -1,10 +1,10 @@
 # ============================================================
 #  OpenClaw VPS Installer — Full Setup
-#  Repo: https://github.com/NguyenKhacDanh/OpenClaw_New
+#  Repo: https://github.com/NguyenKhacDanh/openclaw-1
 #
 #  Cách dùng:
 #    [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-#    Invoke-WebRequest -Uri "https://raw.githubusercontent.com/NguyenKhacDanh/OpenClaw_New/main/scripts/install-full-vps.ps1" -OutFile "D:\install.ps1" -UseBasicParsing
+#    Invoke-WebRequest -Uri "https://raw.githubusercontent.com/NguyenKhacDanh/openclaw-1/main/scripts/install-full-vps.ps1" -OutFile "D:\install.ps1" -UseBasicParsing
 #    powershell -ExecutionPolicy Bypass -File D:\install.ps1
 #
 #  Sau khi cài xong: http://YOUR_IP:19001/#token=80130a3a631f966a38d943e7ba21cebc2c2c6f46911b5a7b
@@ -99,7 +99,8 @@ $nodeMajor = Get-NodeMajor
 if ($nodeMajor -ge 22) {
     Log-Ok "Node.js v$((node --version 2>$null)) đã có"
 } else {
-    Log-Info "Node.js $($nodeMajor -gt 0 ? "v$nodeMajor (cần v22+)" : "chưa cài") — đang cài..."
+    $nodeDesc = if ($nodeMajor -gt 0) { "v$nodeMajor (cần v22+)" } else { "chưa cài" }
+    Log-Info "Node.js $nodeDesc — đang cài..."
 
     $nodeInstalled = $false
 
@@ -183,7 +184,7 @@ if (Get-Command git -ErrorAction SilentlyContinue) {
 # ── Clone / Update repo ───────────────────────────────────────
 Log-Head "Source Code"
 
-$REPO_URL = "https://github.com/NguyenKhacDanh/OpenClaw_New.git"
+$REPO_URL = "https://github.com/NguyenKhacDanh/openclaw-1.git"
 
 if (Test-Path "$InstallDir\.git") {
     Log-Info "Repo đã có — đang pull mới nhất..."

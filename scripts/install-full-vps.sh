@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 # ============================================================
 #  OpenClaw VPS Installer — Linux / macOS
-#  Repo: https://github.com/NguyenKhacDanh/OpenClaw_New
+#  Repo: https://github.com/NguyenKhacDanh/openclaw-1
 #
 #  Cách dùng:
-#    curl -fsSL https://raw.githubusercontent.com/NguyenKhacDanh/OpenClaw_New/main/scripts/install-full-vps.sh | bash
+#    curl -fsSL https://raw.githubusercontent.com/NguyenKhacDanh/openclaw-1/main/scripts/install-full-vps.sh | bash
 #
 #  Hoặc với tham số:
 #    curl -fsSL .../install-full-vps.sh -o install.sh
@@ -25,7 +25,7 @@ GROQ_API_KEY="${GROQ_API_KEY:-}"
 NO_AUTOSTART="${NO_AUTOSTART:-}"
 SKIP_BUILD="${SKIP_BUILD:-}"
 NODE_VERSION="22"
-REPO_URL="https://github.com/NguyenKhacDanh/OpenClaw_New.git"
+REPO_URL="https://github.com/NguyenKhacDanh/openclaw-1.git"
 
 # ── Parse args ────────────────────────────────────────────────
 while [[ $# -gt 0 ]]; do
