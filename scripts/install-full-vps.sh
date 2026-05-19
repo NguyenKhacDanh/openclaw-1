@@ -254,6 +254,8 @@ log_head "Cấu hình OpenClaw"
 
 OC_DIR="$HOME/.openclaw"
 mkdir -p "$OC_DIR/extensions"
+mkdir -p "$OC_DIR/knowledgebase"
+mkdir -p "$OC_DIR/workspace"
 
 # ── Ghi .env ─────────────────────────────────────────────────
 cat > "$OC_DIR/.env" <<ENV

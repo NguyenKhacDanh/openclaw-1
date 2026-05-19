@@ -239,8 +239,10 @@ Log-Head "Cấu hình OpenClaw"
 
 $ocDir = "$env:USERPROFILE\.openclaw"
 $extDir = "$ocDir\extensions"
-New-Item -ItemType Directory -Path $ocDir   -Force | Out-Null
-New-Item -ItemType Directory -Path $extDir  -Force | Out-Null
+New-Item -ItemType Directory -Path $ocDir                    -Force | Out-Null
+New-Item -ItemType Directory -Path $extDir                   -Force | Out-Null
+New-Item -ItemType Directory -Path "$ocDir\knowledgebase"    -Force | Out-Null
+New-Item -ItemType Directory -Path "$ocDir\workspace"        -Force | Out-Null
 
 # ── Ghi .env ─────────────────────────────────────────────────
 $envLines = @(
